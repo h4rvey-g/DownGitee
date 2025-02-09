@@ -164,7 +164,7 @@ downGitModule.factory('downGitService', [
 
                     }, function(error) {
                         console.log("probable big file.");
-                        downloadFile("https://raw.githubusercontent.com/"+repoInfo.author+"/"+
+                        downloadFile("https://ghproxy.net/https://raw.githubusercontent.com/"+repoInfo.author+"/"+
                                 repoInfo.repository+"/"+repoInfo.branch+"/"+repoInfo.resPath,
                                 progress, toastr);
                     });
