@@ -15,14 +15,40 @@ downGitModule.factory('downGitService', [
         var repoInfo = {};
 
         var parseInfo = function(parameters) {
+            // 如果 URL 包含 /raw/refs/heads/ 则转换格式
+            if (parameters.url.indexOf("/raw/refs/heads/") !== -1) {
+                var parts = new URL(parameters.url).pathname.split("/"); // ['', author, repository, "raw", "refs", "heads", branch, ...]
+                var info = {};
+                info.isRaw = true;
+                info.author = parts[1];
+                info.repository = parts[2];
+                info.branch = parts[6];
+                info.resPath = parts.slice(7).join("/");
+                // 转换成 ghproxy.net 格式
+                info.downloadUrl = parameters.url.replace("https://github.com/", "https://ghproxy.net/https://raw.githubusercontent.com/").replace("/raw/refs/heads/", "/");
+                // 使用用户传入的文件名及根目录参数
+                if(!parameters.fileName || parameters.fileName==""){
+                    info.downloadFileName = parts[parts.length-1];
+                } else{
+                    info.downloadFileName = parameters.fileName;
+                }
+                if(parameters.rootDirectory=="false"){
+                    info.rootDirectoryName = "";
+                } else if(!parameters.rootDirectory || parameters.rootDirectory=="" ||
+                    parameters.rootDirectory=="true"){
+                    info.rootDirectoryName = parts[parts.length-1]+"/";
+                } else{
+                    info.rootDirectoryName = parameters.rootDirectory+"/";
+                }
+                return info;
+            }
+            // ...existing代码用于处理一般 GitHub URL...
             var repoPath = new URL(parameters.url).pathname;
             var splitPath = repoPath.split("/");
             var info = {};
-
             info.author = splitPath[1];
             info.repository = splitPath[2];
             info.branch = splitPath[4];
-
             info.rootName = splitPath[splitPath.length-1];
             if(!!splitPath[4]){
                 info.resPath = repoPath.substring(
@@ -32,24 +58,19 @@ downGitModule.factory('downGitService', [
             info.urlPrefix = "https://api.github.com/repos/"+
                 info.author+"/"+info.repository+"/contents/";
             info.urlPostfix = "?ref="+info.branch;
-
             if(!parameters.fileName || parameters.fileName==""){
                 info.downloadFileName = info.rootName;
             } else{
                 info.downloadFileName = parameters.fileName;
             }
-
             if(parameters.rootDirectory=="false"){
                 info.rootDirectoryName = "";
-
             } else if(!parameters.rootDirectory || parameters.rootDirectory=="" ||
                 parameters.rootDirectory=="true"){
                 info.rootDirectoryName = info.rootName+"/";
-
             } else{
                 info.rootDirectoryName = parameters.rootDirectory+"/";
             }
-
             return info;
         }
 
@@ -143,6 +164,12 @@ downGitModule.factory('downGitService', [
         return {
             downloadZippedFiles: function(parameters, progress, toastr) {
                 repoInfo = parseInfo(parameters);
+
+                // 如果是原始 raw URL，则直接下载
+                if (repoInfo.isRaw) {
+                    downloadFile(repoInfo.downloadUrl, progress, toastr);
+                    return;
+                }
 
                 if(!repoInfo.resPath || repoInfo.resPath==""){
                     if(!repoInfo.branch || repoInfo.branch==""){
